@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multiplication Master Deluxe</title>
+<style>
+body{font-family:Arial,sans-serif;background:linear-gradient(135deg,#4facfe,#00f2fe);margin:0;padding:20px}
+.container{max-width:900px;margin:auto;background:white;padding:20px;border-radius:20px;text-align:center;box-shadow:0 8px 25px rgba(0,0,0,.2)}
+.table-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.table-grid label,.options label{background:#eef5ff;padding:8px 12px;border-radius:10px}
+.stats{display:flex;justify-content:space-around;flex-wrap:wrap;font-weight:bold;margin:15px 0}
+.question{font-size:3rem;margin:20px}
+.progress{height:20px;background:#ddd;border-radius:20px;overflow:hidden}
+.progress-bar{height:100%;width:0;background:#4caf50}
+.mastery-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.mastery-item{background:#f7f7f7;padding:8px;border-radius:8px}
+button{padding:12px 20px;border:none;border-radius:10px;color:white;font-weight:bold;cursor:pointer}
+#startBtn{background:#2196f3}
+#submitBtn{background:#4caf50}
+.hidden{display:none}
+input[type=number]{padding:10px;font-size:1.2rem;width:120px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🚀 Multiplication Master Deluxe</h1>
+
+<div id="setup">
+
+<h3>Select Tables</h3>
+<div class="table-grid" id="tables"></div>
+
+<h3>Options</h3>
+<div class="options">
+<label><input type="checkbox" id="exclude1"> Exclude ×1</label>
+<label><input type="checkbox" id="exclude10"> Exclude ×10</label>
+</div>
+
+<h3>Game Settings</h3>
+<p>
+Questions:
+<input type="number" id="questionCount" value="20" min="5" max="100">
+</p>
+<p>
+Time per Question (seconds):
+<input type="number" id="timeLimit" value="10" min="3" max="60">
+</p>
+
+<button id="startBtn">▶ Start Game</button>
+
+</div>
+
+<div id="game" class="hidden">
+
+<h2 id="levelDisplay">Level 1</h2>
+
+<div class="progress">
+<div class="progress-bar" id="progressBar"></div>
+</div>
+
+<div class="stats">
+<div>⭐ Score: <span id="score">0</span></div>
+<div>🔥 Streak: <span id="streak">0</span></div>
+<div>⏱️ Time: <span id="timer">0</span></div>
+<div>📝 Question: <span id="currentQ">0</span>/<span id="totalQ">0</span></div>
+</div>
+
+<div class="question" id="question"></div>
+
+<input type="number" id="answer">
+<button id="submitBtn">Submit</button>
+
+<div id="feedback"></div>
+
+<h3>🏆 Table Mastery</h3>
+<div class="mastery-grid" id="mastery"></div>
+
+</div>
+
+</div>
+
+<script>
+for(let i=1;i<=12;i++){
+ tables.innerHTML += `<label><input type="checkbox" value="${i}" ${i>=7&&i<=9?'checked':''}>${i}</label>`;
+}
+
+let score=0,streak=0,level=1,progress=0;
+let correctAnswer=0,currentTable=1;
+let timerHandle;
+let totalQuestions=20;
+let currentQuestion=0;
+let perQuestionTime=10;
+
+const mastery={};
+for(let i=1;i<=12;i++) mastery[i]=0;
+
+function renderMastery(){
+ let html='';
+ for(let i=1;i<=12;i++){
+  let stars='';
+  if(mastery[i]>=20) stars='⭐⭐⭐';
+  else if(mastery[i]>=10) stars='⭐⭐';
+  else if(mastery[i]>=5) stars='⭐';
+  html += `<div class="mastery-item">${i}'s<br>${stars}</div>`;
+ }
+ mastery.innerHTML=html;
+}
+
+function selectedTables(){
+ return [...document.querySelectorAll('#tables input:checked')].map(x=>+x.value);
+}
+
+function getMultiplier(){
+ let nums=[];
+ for(let i=1;i<=12;i++){
+   if(i===1 && exclude1.checked) continue;
+   if(i===10 && exclude10.checked) continue;
+   nums.push(i);
+ }
+ return nums[Math.floor(Math.random()*nums.length)];
+}
+
+function startGame(){
+ if(selectedTables().length===0){
+   alert('Select at least one table');
+   return;
+ }
+
+ totalQuestions=parseInt(questionCount.value);
+ perQuestionTime=parseInt(timeLimit.value);
+
+ score=0;
+ streak=0;
+ level=1;
+ progress=0;
+ currentQuestion=0;
+
+ setup.classList.add('hidden');
+ game.classList.remove('hidden');
+
+ updateStats();
+ nextQuestion();
+}
+
+function startTimer(){
+ clearInterval(timerHandle);
+
+ let t=perQuestionTime;
+ timer.textContent=t;
+
+ timerHandle=setInterval(()=>{
+  t--;
+  timer.textContent=t;
+
+  if(t<=0){
+    clearInterval(timerHandle);
+    streak=0;
+    feedback.innerHTML='⏰ Time\'s up! Correct answer: '+correctAnswer;
+    updateStats();
+    setTimeout(nextQuestion,1200);
+  }
+ },1000);
+}
+
+function nextQuestion(){
+
+ if(currentQuestion>=totalQuestions){
+   endGame();
+   return;
+ }
+
+ currentQuestion++;
+ currentQ.textContent=currentQuestion;
+
+ let tables=selectedTables();
+
+ currentTable=tables[Math.floor(Math.random()*tables.length)];
+
+ let multiplier=getMultiplier();
+
+ correctAnswer=currentTable*multiplier;
+
+ question.innerHTML=`${currentTable} × ${multiplier}`;
+ answer.value='';
+ feedback.innerHTML='';
+
+ startTimer();
+ answer.focus();
+}
+
+function checkAnswer(){
+
+ clearInterval(timerHandle);
+
+ let ans=Number(answer.value);
+
+ if(ans===correctAnswer){
+
+   streak++;
+   let pts=10+streak;
+
+   score+=pts;
+
+   mastery[currentTable]++;
+
+   progress++;
+
+   if(progress>=10){
+      progress=0;
+      if(level<5) level++;
+   }
+
+   feedback.innerHTML=`✅ Correct! +${pts} points`;
+
+ }else{
+
+   streak=0;
+
+   feedback.innerHTML=`❌ Correct answer: ${correctAnswer}`;
+ }
+
+ updateStats();
+
+ setTimeout(nextQuestion,1000);
+}
+
+function updateStats(){
+ scoreSpan.textContent=score;
+ streakSpan.textContent=streak;
+ totalQ.textContent=totalQuestions;
+
+ levelDisplay.textContent='Level '+level;
+
+ progressBar.style.width=(progress*10)+'%';
+
+ renderMastery();
+}
+
+function endGame(){
+
+ clearInterval(timerHandle);
+
+ question.innerHTML='🎉 Game Complete!';
+
+ feedback.innerHTML=`
+ <h2>Final Score: ${score}</h2>
+ <h3>Great Job!</h3>
+ <button onclick="location.reload()">Play Again</button>
+ `;
+}
+
+startBtn.addEventListener('click',startGame);
+submitBtn.addEventListener('click',checkAnswer);
+
+answer.addEventListener('keypress',e=>{
+ if(e.key==='Enter') checkAnswer();
+});
+
+const scoreSpan=document.getElementById('score');
+const streakSpan=document.getElementById('streak');
+
+renderMastery();
+</script>
+
+</body>
+</html>
